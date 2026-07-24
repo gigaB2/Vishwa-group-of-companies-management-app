@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vishwa Fashions — Enterprise Portal</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- Supabase Synchronization Adapter -->
+    <script src="assets/supabase-client.js"></script>
+    
+    <style>
+        :root {
+            --bg-deep: #090a0f;
+            --surface-glass: rgba(18, 20, 29, 0.65);
+            --surface-border: rgba(255, 255, 255, 0.08);
+            --surface-border-glow: rgba(56, 189, 248, 0.3);
+            --accent-primary: #38bdf8;
+            --accent-secondary: #818cf8;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --font-heading: 'Outfit', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-deep);
+            color: var(--text-primary);
+            font-family: var(--font-heading);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Interactive Particle & Mesh Canvas */
+        #heroCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* Subtle Ambient Glow Follower */
+        .mouse-glow {
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(56, 189, 248, 0.12) 0%, rgba(129, 140, 248, 0.05) 45%, transparent 70%);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 2;
+            transition: width 0.3s ease, height 0.3s ease;
+        }
+
+        /* Container Layout */
+        .portal-wrapper {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        /* Top Header */
+        header {
+            width: 100%;
+            max-width: 1300px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand-logo-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.6rem 1.2rem;
+            background: var(--surface-glass);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--surface-border);
+            border-radius: 9999px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .brand-icon-box {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #000;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .brand-name-display {
+            font-size: 1.1rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: var(--text-primary);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .icon-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: var(--surface-glass);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--surface-border);
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .icon-btn:hover {
+            color: var(--text-primary);
+            border-color: var(--surface-border-glow);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px -6px rgba(56, 189, 248, 0.25);
+        }
+
+        /* Hero Login Center Card */
+        .portal-card {
+            width: 100%;
+            max-width: 460px;
+            background: var(--surface-glass);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--surface-border);
+            border-radius: 2rem;
+            padding: 3rem 2.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s ease;
+        }
+
+        .portal-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-primary), var(--accent-secondary), transparent);
+            opacity: 0.6;
+        }
+
+        .card-header {
+            text-align: center;
+            margin-bottom: 2.25rem;
+        }
+
+        .card-title {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .card-subtitle {
+            font-size: 0.925rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        /* Form Controls */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            font-size: 0.825rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 1.25rem;
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            pointer-events: none;
+            transition: color 0.2s ease;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 1.1rem 1.25rem 1.1rem 3.25rem;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--surface-border);
+            border-radius: 1.25rem;
+            color: var(--text-primary);
+            font-family: var(--font-heading);
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .form-input:focus {
+            border-color: var(--accent-primary);
+            background: rgba(15, 23, 42, 0.85);
+            box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.15);
+        }
+
+        .form-input:focus + .input-icon,
+        .form-input:not(:placeholder-shown) + .input-icon {
+            color: var(--accent-primary);
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 1.1rem;
+            border-radius: 1.25rem;
+            border: none;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: #040814;
+            font-family: var(--font-heading);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            margin-top: 0.5rem;
+            box-shadow: 0 12px 28px -8px rgba(56, 189, 248, 0.4);
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px) scale(1.01);
+            box-shadow: 0 16px 36px -8px rgba(56, 189, 248, 0.55);
+        }
+
+        .submit-btn:active {
+            transform: translateY(0) scale(0.98);
+        }
+
+        /* Settings Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: rgba(4, 6, 12, 0.75);
+            backdrop-filter: blur(16px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .settings-card {
+            width: 100%;
+            max-width: 440px;
+            background: #111420;
+            border: 1px solid var(--surface-border);
+            border-radius: 2rem;
+            padding: 2.25rem;
+            transform: translateY(20px) scale(0.95);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.7);
+        }
+
+        .modal-overlay.active .settings-card {
+            transform: translateY(0) scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.75rem;
+        }
+
+        .modal-title {
+            font-size: 1.35rem;
+            font-weight: 700;
+        }
+
+        .close-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.25rem;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+
+        .close-btn:hover {
+            color: var(--text-primary);
+        }
+
+        /* Footer Info */
+        footer {
+            width: 100%;
+            max-width: 1300px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .footer-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            padding: 0.4rem 0.8rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--surface-border);
+            border-radius: 0.5rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #10b981;
+        }
+
+        /* Mobile Responsiveness for Portal Landing Page */
+        @media (max-width: 768px) {
+            .portal-wrapper {
+                padding: 1.25rem 1rem;
+                justify-content: space-around;
+            }
+
+            .portal-card {
+                padding: 2rem 1.5rem;
+                border-radius: 1.5rem;
+            }
+
+            .card-title {
+                font-size: 1.6rem;
+            }
+
+            footer {
+                flex-direction: column;
+                gap: 0.75rem;
+                text-align: center;
+            }
+
+            .settings-card {
+                padding: 1.5rem;
+                border-radius: 1.5rem;
+                width: 92%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .brand-name-display {
+                font-size: 0.95rem;
+            }
+
+            .portal-card {
+                padding: 1.5rem 1.15rem;
+            }
+
+            .card-title {
+                font-size: 1.4rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Interactive Background Elements -->
+    <div class="mouse-glow" id="mouseGlow"></div>
+    <canvas id="heroCanvas"></canvas>
+
+    <div class="portal-wrapper">
+        <!-- Top Navigation Bar -->
+        <header>
+            <div class="brand-logo-badge">
+                <div class="brand-icon-box" id="headerLogoIcon">V</div>
+                <span class="brand-name-display" id="headerBrandName">Vishwa Fashions</span>
+            </div>
+
+            <div class="header-actions">
+                <button class="icon-btn" id="openSettingsBtn" title="Company Settings" aria-label="Settings">
+                    <i class="ph ph-gear-six"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Central Login Card -->
+        <main class="portal-card" id="portalCard">
+            <div class="card-header">
+                <h1 class="card-title">Welcome Back</h1>
+                <p class="card-subtitle">Enter your name to access the management workspace</p>
+            </div>
+
+            <form id="loginForm" autocomplete="off">
+                <div class="form-group">
+                    <label class="form-label" for="userNameInput">Operator Name</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="userNameInput" class="form-input" placeholder="e.g. Alex Mercer" required autofocus>
+                        <i class="ph ph-user input-icon"></i>
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn">
+                    <span>Enter Workspace</span>
+                    <i class="ph ph-arrow-right"></i>
+                </button>
+            </form>
+        </main>
+
+        <!-- Footer -->
+        <footer>
+            <div class="footer-badge">
+                <span class="status-dot"></span>
+                <span>SYSTEM ONLINE</span>
+            </div>
+            <p>&copy; <span id="currentYear"></span> <span id="footerBrandName">Vishwa Fashions</span>. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <!-- Company Name Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="settings-card">
+            <div class="modal-header">
+                <h2 class="modal-title">Company Settings</h2>
+                <button class="close-btn" id="closeSettingsBtn"><i class="ph ph-x"></i></button>
+            </div>
+
+            <form id="settingsForm">
+                <div class="form-group">
+                    <label class="form-label" for="companyNameInput">Company Name</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="companyNameInput" class="form-input" placeholder="Vishwa Fashions" required>
+                        <i class="ph ph-buildings input-icon"></i>
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn" style="margin-top: 1.5rem;">
+                    <span>Save Changes</span>
+                    <i class="ph ph-check"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Store and handle Company Name state
+        const STORAGE_KEY_COMPANY = 'vf_company_name';
+        const STORAGE_KEY_SETTINGS = 'vishwa_fashions_settings';
+        const STORAGE_KEY_USER = 'vf_user_name';
+
+        function getCompanyName() {
+            // Check vishwa_fashions_settings first (from Settings module), then vf_company_name
+            try {
+                const settingsRaw = localStorage.getItem(STORAGE_KEY_SETTINGS);
+                if (settingsRaw) {
+                    const settings = JSON.parse(settingsRaw);
+                    if (settings && settings.sellerName && settings.sellerName.trim()) {
+                        return settings.sellerName.trim();
+                    }
+                }
+            } catch (e) {}
+            return localStorage.getItem(STORAGE_KEY_COMPANY) || 'Vishwa Fashions';
+        }
+
+        function updateBrandUI(name) {
+            const trimmed = name.trim() || 'Vishwa Fashions';
+            document.title = `${trimmed} — Enterprise Portal`;
+            document.getElementById('headerBrandName').textContent = trimmed;
+            document.getElementById('footerBrandName').textContent = trimmed;
+            document.getElementById('headerLogoIcon').textContent = trimmed.charAt(0).toUpperCase();
+        }
+
+        // Initialize UI
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+        const initialCompany = getCompanyName();
+        updateBrandUI(initialCompany);
+        document.getElementById('companyNameInput').value = initialCompany;
+
+        // Populate User if already set
+        const savedUser = localStorage.getItem(STORAGE_KEY_USER);
+        if (savedUser) {
+            document.getElementById('userNameInput').value = savedUser;
+        }
+
+        // Modal Controls
+        const modal = document.getElementById('settingsModal');
+        document.getElementById('openSettingsBtn').addEventListener('click', () => modal.classList.add('active'));
+        document.getElementById('closeSettingsBtn').addEventListener('click', () => modal.classList.remove('active'));
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.classList.remove('active');
+        });
+
+        // Settings Form Submission
+        document.getElementById('settingsForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const newName = document.getElementById('companyNameInput').value.trim();
+            if (newName) {
+                localStorage.setItem(STORAGE_KEY_COMPANY, newName);
+                try {
+                    let settings = {};
+                    const settingsRaw = localStorage.getItem(STORAGE_KEY_SETTINGS);
+                    if (settingsRaw) settings = JSON.parse(settingsRaw) || {};
+                    settings.sellerName = newName;
+                    localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settings));
+                } catch (err) {}
+                updateBrandUI(newName);
+            }
+            modal.classList.remove('active');
+        });
+
+        // Login Form Submission (Redirect to main module)
+        document.getElementById('loginForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const userName = document.getElementById('userNameInput').value.trim();
+            if (userName) {
+                localStorage.setItem(STORAGE_KEY_USER, userName);
+                window.location.href = 'modules/weaving/weaving-production.html';
+            }
+        });
+
+        // Mouse Reactive Canvas Physics (Google-style fluid particles)
+        const canvas = document.getElementById('heroCanvas');
+        const ctx = canvas.getContext('2d');
+        const mouseGlow = document.getElementById('mouseGlow');
+        const card = document.getElementById('portalCard');
+
+        let width, height;
+        let mouse = { x: window.innerWidth / 2, y: window.innerHeight / 2, targetX: window.innerWidth / 2, targetY: window.innerHeight / 2 };
+        let particles = [];
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            initParticles();
+        }
+
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.vx = (Math.random() - 0.5) * 0.4;
+                this.vy = (Math.random() - 0.5) * 0.4;
+                this.radius = Math.random() * 2 + 1;
+                this.baseAlpha = Math.random() * 0.35 + 0.15;
+                this.alpha = this.baseAlpha;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (this.x < 0 || this.x > width) this.vx *= -1;
+                if (this.y < 0 || this.y > height) this.vy *= -1;
+
+                // Mouse interaction distance
+                const dx = mouse.x - this.x;
+                const dy = mouse.y - this.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const maxDist = 180;
+
+                if (dist < maxDist) {
+                    const force = (maxDist - dist) / maxDist;
+                    this.alpha = this.baseAlpha + force * 0.5;
+                    this.x -= (dx / dist) * force * 1.5;
+                    this.y -= (dy / dist) * force * 1.5;
+                } else {
+                    this.alpha = this.baseAlpha;
+                }
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(56, 189, 248, ${this.alpha})`;
+                ctx.fill();
+            }
+        }
+
+        function initParticles() {
+            particles = [];
+            const count = Math.min(Math.floor((width * height) / 12000), 100);
+            for (let i = 0; i < count; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        window.addEventListener('mousemove', (e) => {
+            mouse.targetX = e.clientX;
+            mouse.targetY = e.clientY;
+        });
+
+        function animate() {
+            // Smooth mouse interpolation
+            mouse.x += (mouse.targetX - mouse.x) * 0.08;
+            mouse.y += (mouse.targetY - mouse.y) * 0.08;
+
+            // Move radial glow
+            mouseGlow.style.left = `${mouse.x}px`;
+            mouseGlow.style.top = `${mouse.y}px`;
+
+            // Card 3D tilt effect
+            const cardRect = card.getBoundingClientRect();
+            const cardCenterX = cardRect.left + cardRect.width / 2;
+            const cardCenterY = cardRect.top + cardRect.height / 2;
+            const tiltX = (mouse.y - cardCenterY) / 35;
+            const tiltY = (cardCenterX - mouse.x) / 35;
+            card.style.transform = `perspective(1000px) rotateX(${tiltX}deg) rotateY(${tiltY}deg)`;
+
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw interactive constellation lines
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update();
+                particles[i].draw();
+
+                for (let j = i + 1; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < 130) {
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.strokeStyle = `rgba(56, 189, 248, ${0.15 * (1 - dist / 130)})`;
+                        ctx.lineWidth = 0.75;
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+        animate();
+    </script>
+    <script src="assets/seed-data-year.js"></script>
+</body>
+</html>
